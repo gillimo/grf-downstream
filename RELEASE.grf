@@ -1,5 +1,5 @@
 ```grf:context id="public-client-release"
-version: "0.3.0-rc1"
+version: "0.3.0-rc2"
 status: "Public downstream starter release candidate; public API activation separate"
 license: "MIT, distributed client files only"
 features:

@@ -15,7 +15,7 @@ import uuid
 
 from grf_client import Client, Denied, canonical, load_config, strict_json
 
-VERSION = '0.3.0-rc1'
+VERSION = '0.3.0-rc2'
 HEADER = '```grf:context id="downstream-project"\n'
 REQUIRED = 'REG-PROJECT-ACCEPTANCE'
 
@@ -36,6 +36,7 @@ def write_json(path, value):
 
 
 def inside(root, name):
+    root = Path(root).resolve()
     path = (root / name).resolve()
     if path == root or root not in path.parents:
         raise ValueError('Path must stay inside the project: ' + str(name))
@@ -161,6 +162,7 @@ def require_active(root):
 
 
 def run_checks(root):
+    root = Path(root).resolve()
     doc = project(root)
     active = require_active(root)
     ids = [c['id'] for c in doc['checks']]
@@ -207,6 +209,7 @@ def run_checks(root):
 
 
 def lifecycle(root, action, task=None, evidence=None, summary=None):
+    root = Path(root).resolve()
     if action == 'status':
         return state(root) or {'status': 'no session'}
     if action == 'sign-in':

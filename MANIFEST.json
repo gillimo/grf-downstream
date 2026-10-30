@@ -1,10 +1,10 @@
 {
-  "version": "0.3.0-rc1",
+  "version": "0.3.0-rc2",
   "license": "MIT",
   "scope": "Public admission client only",
   "files": {
-    "grf_client.py": "e651366747e4c11f7997d5449420ade0605c2a207c40baa4499805e4b89d39b4",
-    "README.grf": "e17028eb0a53ca652afb29ca628fb31e3305d1a1dbaad8f8514734b1c9113751",
+    "grf_client.py": "c3c0bc392c1f14bdd9c67794a27f866bfaabf7058d1d591ac565fb24622832c5",
+    "README.grf": "7a9f827ee0b48b35dc3ce15e1aa9e5c86e2724dd37899791076a75029d1b961a",
     "LICENSE": "f6027e3cfd43a77a2d0701a92a07f26b80cd44486c8457dcacbef69d37f911b6",
     "SECURITY.grf": "0813d9ea0e9b9d915d35844d3bfc3b12adc251f47af0e01f6aa80e2f2c8d19d6",
     "enrollment.example.json": "bd172ac2d72f95af6c848f46634177e1d6d9e1a2ad33034da8b0e1d52898a250",
@@ -12,9 +12,9 @@
     ".gitignore": "dca7bc2a05736ae34f74e5b140575e86d4deacd592bacc1b1808d2a1be4d7681",
     "test_client.py": "2ebdfcf984f799dc0becae2e8ae6992e257c4a1827e690434c7ed8c801dc53f7",
     "verify_release.py": "2b6802a1b145e178d9827b69384e4572eadc770994153ccb0e2d04243662ea55",
-    "RELEASE.grf": "92047439d2a5ea20992b9681dce677c43feb806359c5dc9838b95e6ee7f644e8",
-    "grf_starter.py": "a2e90136ee6c1fb71dacf0c20c7b5a8ee6aa52361f72cbac95c8ce0ef1271374",
+    "RELEASE.grf": "f34f640ed0a4b2d1973ec71a4553c1cdeb99e3facd3842d9d413d76996c98778",
+    "grf_starter.py": "a8f04a2df0a752d05fa1c78a32d18a436bf3245c591d8baeffd2920244965137",
     "test_starter.py": "83e95ce08692a4eb794a4e6ddd9a5dcec4a4fb730774827b5cdd3878dce9aec0",
-    "QUICKSTART.grf": "9b5dccd1c2c6a3a95f7f0ebab5f96631b4a05437c947a753b5b61b27ce18beea"
+    "QUICKSTART.grf": "8f381f6ea113a02ecf0da9705c0cffca9bbb08a8fa269ecd39dcbce7467dc92c"
   }
 }
