@@ -1,0 +1,9 @@
+{
+  "host": "api.example.invalid",
+  "port": 443,
+  "ca": "credentials/service-ca.pem",
+  "cert": "credentials/client.pem",
+  "key": "credentials/client-key.pem",
+  "project": "your-issued-project",
+  "policy": "your-issued-policy-version"
+}

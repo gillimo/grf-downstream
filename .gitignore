@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+credentials/
+enrollment.json
+*.key
+*.pem
+*.crt
+*.csr
+*.p12
+*.pfx
+.env
+dist/

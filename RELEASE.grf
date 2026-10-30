@@ -1,0 +1,13 @@
+```grf:context id="public-client-release"
+version: "0.3.0-rc1"
+status: "Public downstream starter release candidate; public API activation separate"
+license: "MIT, distributed client files only"
+features:
+  - "Project-agnostic initialization, explicit intent and scope, and pinned project-local runtime"
+  - "Deliberately failing initial acceptance, counted checks, durable resume identity"
+  - "Hashed evidence and fresh acceptance required before sign-out"
+  - "Local operation without an account; optional verified HTTPS mutual-TLS admission"
+verification: "python verify_release.py; python -m unittest test_client test_starter -v"
+entrypoint: "QUICKSTART.grf"
+limits: "Cooperative runner, not OS containment or private evaluator equivalence. No SSH credentials, private rules, server source, or enrollment secrets."
+```

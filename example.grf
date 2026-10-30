@@ -1,0 +1,12 @@
+```grf:context id="downstream-example"
+{
+  "format": "grf.downstream-preview/v1",
+  "intent": "Example only; requires separate enrollment and action approval",
+  "action": {
+    "argv": ["python", "-c", "print('GRF example')"],
+    "cwd": ".",
+    "scope": "example",
+    "identity": "example-worker"
+  }
+}
+```
