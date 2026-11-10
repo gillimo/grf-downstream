@@ -14,8 +14,9 @@ import sys
 import uuid
 
 from grf_client import Client, Denied, canonical, load_config, strict_json
+from grf_process import run_managed
 
-VERSION = '0.4.0-rc1'
+VERSION = '0.4.1'
 HEADER = '```grf:context id="downstream-project"\n'
 REQUIRED = 'REG-PROJECT-ACCEPTANCE'
 
@@ -52,15 +53,16 @@ def init(target, intent):
     runtime = target / '.grf-runtime'
     runtime.mkdir()
     source = Path(__file__).resolve().parent
-    for name in ('grf_starter.py', 'grf_client.py'):
+    runtime_files = ('grf_starter.py', 'grf_client.py', 'grf_relay.py', 'grf_process.py', 'requirements-relay.txt')
+    for name in runtime_files:
         shutil.copyfile(source / name, runtime / name)
-    pins = {name: sha(runtime / name) for name in ('grf_starter.py', 'grf_client.py')}
+    pins = {name: sha(runtime / name) for name in runtime_files}
     launcher = '''"""Project-local pinned entry point. No installed-runtime fallback."""
 import hashlib, json, pathlib, runpy, sys
 root = pathlib.Path(__file__).resolve().parent
 runtime = root / '.grf-runtime'
 pins = json.loads((runtime / 'pins.json').read_text(encoding='utf-8'))
-if set(pins) != {'grf_starter.py', 'grf_client.py'}:
+if set(pins) != {'grf_starter.py', 'grf_client.py', 'grf_relay.py', 'grf_process.py', 'requirements-relay.txt'}:
     raise SystemExit('Invalid runtime pins; restore the verified release')
 for name, expected in pins.items():
     if hashlib.sha256((runtime / name).read_bytes()).hexdigest() != expected:
@@ -187,8 +189,7 @@ def run_checks(root):
                 config = load_config(inside(root, doc['admission']['enrollment']))
                 Client(config).admit({'argv': argv, 'cwd': str(root),
                                       'scope': check['id'], 'identity': active['id']})
-            result = subprocess.run(argv, cwd=root, stdin=subprocess.DEVNULL,
-                                    capture_output=True, timeout=check['timeout_seconds'])
+            result = run_managed(argv, cwd=root, capture_output=True, timeout=check['timeout_seconds'])
             item.update(exit_code=result.returncode,
                         stdout=result.stdout.decode('utf-8', errors='replace')[-16000:],
                         stderr=result.stderr.decode('utf-8', errors='replace')[-16000:],

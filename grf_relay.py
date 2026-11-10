@@ -1,6 +1,6 @@
 """MIT client-only bounded encrypted transport. TLS authenticates the authority.
 
-Requires websockets==13.1. This module does not authenticate application users;
+Requires websockets==17.4. This module does not authenticate application users;
 callers MUST wrap the returned socket in verified, client-authenticated TLS.
 """
 import asyncio

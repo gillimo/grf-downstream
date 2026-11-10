@@ -10,8 +10,9 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from grf_process import run_managed
 
-VERSION = '0.4.0-rc1'
+VERSION = '0.4.1'
 
 
 class Denied(Exception):
@@ -137,8 +138,7 @@ def run(action, client):
     # Freeze the caller's data before hashing and launching; no shell interpolation.
     action = strict_json(canonical(action))
     client.admit(action)
-    return subprocess.run(action['argv'], cwd=action['cwd'], stdin=subprocess.DEVNULL,
-                          timeout=30, check=False).returncode
+    return run_managed(action['argv'], cwd=action['cwd'], timeout=30).returncode
 
 
 def main():
