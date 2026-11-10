@@ -1,0 +1,14 @@
+```grf:context id="hosted-admission-client"
+version: "0.4.0-rc1"
+status: "Enrolled cloud trial supported. Private implementation and enrollment credentials are not included."
+requirements: "Python 3.9+. Direct HTTPS/local starter use standard library only. Relay enrollment additionally requires: python -m pip install --require-hashes -r requirements-relay.txt"
+enrollment: "Obtain your own client certificate from the operator using a locally generated private key and CSR. Enrollment includes the authority hostname, server CA, client certificate, project, policy and approved exact actions. Do not send your private key. For relay enrollment the operator separately supplies a Send-only relay credential; never accept Listen/Manage or owner/admin credentials."
+relay_fields: "Add optional relay object to enrollment JSON: host, path, key_name, key_file. key_file is relative to enrollment.json and contains the separately issued Send-only credential. Never commit it. All normal authority CA and hostname checks remain required."
+example: '{"relay":{"host":"your-namespace.servicebus.windows.net","path":"your-connection","key_name":"your-send-rule","key_file":"relay-send.key"}}'
+use: "The same grf_client.py and grf_starter.py API mode use the selected transport. Local syntax check does not contact the service. Actual command launch requires both issue and single-use consumption. No network fallback or offline admission."
+credential_storage: "Keep enrollment and keys outside source control; restrict POSIX permissions to owner or Windows ACL to your user. Protect local backups. Treat Relay Send credentials as private even though application access still requires your own mTLS certificate."
+renewal: "Keep CA/hostname verification enabled. Request replacement client certificate using a fresh locally generated key/CSR before expiration. Operator can disable old fingerprint and revoke its Send rule; revocation takes effect after serving revisions are replaced. Never restore old enabled entitlement state during rollback."
+transport_limits: "Relay supports binary WebSockets with inner mTLS; its URL is not a browser API. Frame, queue, byte and lifetime limits are enforced. A connection failure blocks command launch."
+service_limits: "Cloud service currently provides exact-action admission. The cooperative runner is not an OS sandbox or independent acceptance observer. Full private evaluator equivalence and production SLA are not claimed. Enrollment is operator-managed; no public signup/billing flow."
+privacy: "Only protocol identifiers/digest and certificate identity reach the authority. Command text/output remains local. Cloud provider connection/control-plane metadata exists. No hosted zero-metadata claim."
+```

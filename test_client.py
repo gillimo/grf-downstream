@@ -72,6 +72,18 @@ class ClientTests(unittest.TestCase):
             config = client.load_config(path)
             self.assertEqual(config['key'], str((Path(folder)/'client.key').resolve()))
 
+    def test_relay_config_is_strict_and_credential_path_is_relative(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'enrollment.json'
+            config={'host':'example.invalid','port':443,'ca':'ca.pem','cert':'client.pem','key':'client.key','project':'test','policy':'v1',
+                    'relay':{'host':'grf-test.servicebus.windows.net','path':'test','key_name':'sender','key_file':'send.key'}}
+            path.write_text(json.dumps(config))
+            self.assertEqual(client.load_config(path)['relay']['key_file'],str((Path(folder)/'send.key').resolve()))
+            for bad in ({'host':'https://example.com'}, {'key':'inline-secret'}, {'key_name':'bad/name'}, {'key_file':False}):
+                altered=dict(config,relay=dict(config['relay'],**bad))
+                path.write_text(json.dumps(altered))
+                with self.subTest(bad=bad),self.assertRaises(ValueError):client.load_config(path)
+
 
 if __name__ == '__main__':
     unittest.main()

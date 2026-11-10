@@ -4,11 +4,14 @@ import hashlib
 import http.client
 import json
 from pathlib import Path
+import re
 import ssl
 import subprocess
 import sys
 
-VERSION = '0.3.0-rc2'
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+VERSION = '0.4.0-rc1'
 
 
 class Denied(Exception):
@@ -64,7 +67,7 @@ def load_config(path):
         raise ValueError('configuration too large')
     config = strict_json(path.read_bytes())
     required = {'host', 'port', 'ca', 'cert', 'key', 'project', 'policy'}
-    if not isinstance(config, dict) or set(config) != required:
+    if not isinstance(config, dict) or set(config) not in (required, required | {'relay'}):
         raise ValueError('invalid enrollment fields')
     if type(config['port']) is not int or not 1 <= config['port'] <= 65535:
         raise ValueError('invalid port')
@@ -75,6 +78,16 @@ def load_config(path):
         raise ValueError('host must be a hostname or IP, not a URL')
     for k in ('ca', 'cert', 'key'):
         config[k] = str((path.parent / config[k]).resolve())
+    if 'relay' in config:
+        relay=config['relay']
+        if not isinstance(relay,dict) or set(relay)!={'host','path','key_name','key_file'}:
+            raise ValueError('Invalid relay configuration')
+        if any(type(v) is not str or not v or '\0' in v or len(v)>1024 for v in relay.values()):
+            raise ValueError('Invalid relay configuration')
+        if (not re.fullmatch(r'[a-z0-9][a-z0-9-]{4,48}\.servicebus\.windows\.net',relay['host'])
+                or any(not re.fullmatch(r'[a-zA-Z0-9_-]{1,80}',relay[k]) for k in ('path','key_name'))):
+            raise ValueError('Invalid relay endpoint')
+        relay['key_file']=str((path.parent/relay['key_file']).resolve())
     return config
 
 
@@ -86,8 +99,12 @@ class Client:
         self.context.load_cert_chain(config['cert'], config['key'])
 
     def request(self, value):
-        c = http.client.HTTPSConnection(self.config['host'], self.config['port'],
-                                        context=self.context, timeout=4)
+        if 'relay' in self.config:
+            from grf_relay import RelayHTTPSConnection
+            c = RelayHTTPSConnection(self.config,self.context)
+        else:
+            c = http.client.HTTPSConnection(self.config['host'], self.config['port'],
+                                            context=self.context, timeout=4)
         try:
             c.request('POST', '/v1/admission', canonical(value), {'Content-Type': 'application/json'})
             r = c.getresponse()
