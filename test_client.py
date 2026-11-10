@@ -16,14 +16,14 @@ class ClientTests(unittest.TestCase):
     def test_denial_never_launches(self):
         authority = Mock()
         authority.admit.side_effect = client.Denied()
-        with patch.object(client.subprocess, 'run') as launch:
+        with patch.object(client, 'run_managed') as launch:
             with self.assertRaises(client.Denied):
                 client.run(self.action, authority)
             launch.assert_not_called()
 
     def test_allowed_exact_action_and_child_status(self):
         authority = Mock()
-        with patch.object(client.subprocess, 'run', return_value=Mock(returncode=23)) as launch:
+        with patch.object(client, 'run_managed', return_value=Mock(returncode=23)) as launch:
             self.assertEqual(client.run(self.action, authority), 23)
             authority.admit.assert_called_once_with(self.action)
             self.assertEqual(launch.call_args.args[0], self.action['argv'])
@@ -33,7 +33,7 @@ class ClientTests(unittest.TestCase):
     def test_original_action_mutation_cannot_change_launch(self):
         authority = Mock()
         authority.admit.side_effect = lambda _: self.action['argv'].append('changed')
-        with patch.object(client.subprocess, 'run', return_value=Mock(returncode=0)) as launch:
+        with patch.object(client, 'run_managed', return_value=Mock(returncode=0)) as launch:
             client.run(self.action, authority)
             self.assertEqual(launch.call_args.args[0], ['example', 'argument'])
 

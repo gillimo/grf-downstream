@@ -112,6 +112,25 @@ class StarterTests(unittest.TestCase):
         result = starter.run_checks(self.root)
         self.assertEqual((result['executed'], result['passed']), (2, 0))
 
+    def test_check_timeout_cleans_actual_nested_processes(self):
+        from test_process import alive
+        import time
+        self.sign_in()
+        self.edit(lambda doc: doc['checks'][0].update(timeout_seconds=2))
+        (self.root / 'checks/acceptance.py').write_text(
+            'import subprocess,sys,time\n'
+            'from pathlib import Path\n'
+            'p=subprocess.Popen([sys.executable,"-c","import time; time.sleep(30)"])\n'
+            'Path("child.pid").write_text(str(p.pid))\n'
+            'time.sleep(30)\n')
+        result = starter.run_checks(self.root)
+        self.assertEqual((result['result'], result['executed']), ('FAIL', 1))
+        pid = int((self.root / 'child.pid').read_text())
+        until = time.monotonic() + 3
+        while alive(pid) and time.monotonic() < until:
+            time.sleep(.02)
+        self.assertFalse(alive(pid))
+
     def test_empty_and_comment_only_check_cannot_pass(self):
         self.sign_in()
         for text in ('', '# nothing\n', '"""Only documentation"""\npass\n'):
@@ -128,7 +147,7 @@ class StarterTests(unittest.TestCase):
         self.sign_in()
         self.edit(lambda doc: doc.update(admission={'mode': 'remote', 'enrollment': 'credentials/enrollment.json'}))
         with patch.object(starter, 'load_config', return_value={}), patch.object(starter, 'Client') as client, \
-                patch.object(starter.subprocess, 'run') as launch:
+                patch.object(starter, 'run_managed') as launch:
             client.return_value.admit.side_effect = Denied()
             self.assertEqual(starter.run_checks(self.root)['result'], 'FAIL')
             launch.assert_not_called()
@@ -136,7 +155,7 @@ class StarterTests(unittest.TestCase):
     def test_remote_missing_credentials_has_no_local_fallback(self):
         self.sign_in()
         self.edit(lambda doc: doc.update(admission={'mode': 'remote', 'enrollment': 'credentials/missing.json'}))
-        with patch.object(starter.subprocess, 'run') as launch:
+        with patch.object(starter, 'run_managed') as launch:
             self.assertEqual(starter.run_checks(self.root)['result'], 'FAIL')
             launch.assert_not_called()
 
@@ -152,6 +171,30 @@ class StarterTests(unittest.TestCase):
         result = self.cli('session', 'status')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Runtime changed', result.stderr)
+
+    def test_generated_runtime_contains_cloud_transport_without_source_path(self):
+        runtime = self.root / '.grf-runtime'
+        result = subprocess.run([sys.executable, '-I', '-c',
+            'import sys; sys.path.insert(0, sys.argv[1]); '
+            'from grf_relay import RelayHTTPSConnection; '
+            'assert callable(RelayHTTPSConnection)', str(runtime)],
+            cwd=self.root, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((runtime / 'requirements-relay.txt').read_bytes(),
+                         (Path(starter.__file__).parent / 'requirements-relay.txt').read_bytes())
+
+    def test_cloud_transport_and_dependency_pins_block_mutation(self):
+        for name in ('grf_relay.py', 'grf_process.py', 'requirements-relay.txt'):
+            with self.subTest(name=name):
+                path = self.root / '.grf-runtime' / name
+                original = path.read_bytes()
+                try:
+                    path.write_bytes(original + b'\n# changed\n')
+                    result = self.cli('session', 'status')
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn('Runtime changed', result.stderr)
+                finally:
+                    path.write_bytes(original)
 
     def test_evidence_escape_rejected(self):
         self.sign_in()

@@ -1,6 +1,6 @@
 ```grf:context id="public-client-release"
-version: "0.4.0-rc1"
-status: "Enrolled cloud-trial client release candidate; full product acceptance remains separate"
+version: "0.4.0"
+status: "Public cooperative client; enrolled cloud admission supported"
 license: "MIT, distributed client files only"
 features:
   - "Project-agnostic initialization, explicit intent and scope, and pinned project-local runtime"
@@ -8,7 +8,9 @@ features:
   - "Hashed evidence and fresh acceptance required before sign-out"
   - "Local operation without an account; optional verified HTTPS mutual-TLS admission"
   - "Optional Azure Relay transport with inner mTLS, separate Send credential and bounded connections"
-verification: "python verify_release.py; python -m unittest test_client test_starter -v"
+  - "Generated projects include and hash-pin the Relay module and dependency manifest (fixes missing transport in rc1)"
+  - "Managed command and check lifetime: Windows job or POSIX process group cleanup on exit, timeout and interruption; bounded check output"
+verification: "python verify_release.py; python -m unittest test_client test_starter test_process -v"
 entrypoint: "QUICKSTART.grf"
 limits: "Cooperative runner, not OS containment or private evaluator equivalence. No SSH credentials, private rules, server source, or enrollment secrets."
 ```
