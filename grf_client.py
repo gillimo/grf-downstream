@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from grf_process import run_managed
 
-VERSION = '0.4.0'
+VERSION = '0.4.1'
 
 
 class Denied(Exception):
