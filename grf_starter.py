@@ -16,7 +16,7 @@ import uuid
 from grf_client import Client, Denied, canonical, load_config, strict_json
 from grf_process import run_managed
 
-VERSION = '0.4.1'
+VERSION = '0.5.0'
 HEADER = '```grf:context id="downstream-project"\n'
 REQUIRED = 'REG-PROJECT-ACCEPTANCE'
 
@@ -53,7 +53,7 @@ def init(target, intent):
     runtime = target / '.grf-runtime'
     runtime.mkdir()
     source = Path(__file__).resolve().parent
-    runtime_files = ('grf_starter.py', 'grf_client.py', 'grf_relay.py', 'grf_process.py', 'requirements-relay.txt')
+    runtime_files = ('grf_starter.py', 'grf_client.py', 'grf_relay.py', 'grf_process.py', 'requirements-relay.txt', 'grf_enroll.py')
     for name in runtime_files:
         shutil.copyfile(source / name, runtime / name)
     pins = {name: sha(runtime / name) for name in runtime_files}
@@ -62,7 +62,7 @@ import hashlib, json, pathlib, runpy, sys
 root = pathlib.Path(__file__).resolve().parent
 runtime = root / '.grf-runtime'
 pins = json.loads((runtime / 'pins.json').read_text(encoding='utf-8'))
-if set(pins) != {'grf_starter.py', 'grf_client.py', 'grf_relay.py', 'grf_process.py', 'requirements-relay.txt'}:
+if set(pins) != {'grf_starter.py', 'grf_client.py', 'grf_relay.py', 'grf_process.py', 'requirements-relay.txt', 'grf_enroll.py'}:
     raise SystemExit('Invalid runtime pins; restore the verified release')
 for name, expected in pins.items():
     if hashlib.sha256((runtime / name).read_bytes()).hexdigest() != expected:
@@ -275,6 +275,7 @@ def main():
     create = sub.add_parser('init')
     create.add_argument('target')
     create.add_argument('--intent', required=True)
+    create.add_argument('--cloud', action='store_true', help='Enroll automatically in the public cooperative cloud service')
     sub.add_parser('check')
     session = sub.add_parser('session')
     session.add_argument('action', choices=['status', 'sign-in', 'resume', 'complete', 'sign-out'])
@@ -285,6 +286,9 @@ def main():
     try:
         if args.command == 'init':
             result = init(args.target, args.intent)
+            if args.cloud:
+                from grf_enroll import enroll
+                result['cloud']=enroll(args.target)
         else:
             root = Path(args.project).resolve()
             with locked(root):

@@ -3,12 +3,56 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import time
 from unittest.mock import Mock, patch
 
 import grf_client as client
 
 
 class ClientTests(unittest.TestCase):
+    def test_open_signup_and_local_credential_protection(self):
+        import grf_enroll
+        import grf_starter
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)/'project'
+            grf_starter.init(root,'Test open enrollment')
+            def response(host,path,value,account=None,secret=None):
+                if path=='/v1/enroll':
+                    self.assertEqual(set(value),{'account','credential_hash'})
+                    self.assertEqual(len(value['credential_hash']),64)
+                    account=value['account']
+                return {'allowed':True,'account':account,'project':'public-'+account,'policy':'public-1','expires':int(time.time()+86400)}
+            with patch.object(grf_enroll,'request',side_effect=response):
+                self.assertTrue(grf_enroll.enroll(root,'example.invalid')['enrolled'])
+                key=(root/'credentials/access.key').read_bytes()
+                self.assertTrue(grf_enroll.enroll(root,'example.invalid')['enrolled'])
+                self.assertEqual(key,(root/'credentials/access.key').read_bytes())
+            config=client.load_config(root/'credentials/enrollment.json')
+            self.assertEqual(config['transport'],'public-https')
+            self.assertIn('/credentials/',(root/'.gitignore').read_text())
+            self.assertEqual(grf_starter.project(root)['admission']['mode'],'remote')
+
+    def test_public_client_registers_hash_before_requesting_grant(self):
+        authority=object.__new__(client.Client)
+        authority.config={'transport':'public-https','account':'a'*32,'project':'public-'+'a'*32,
+                          'policy':'public-1','expires':time.time()+30*86400}
+        binding={'action':__import__('hashlib').sha256(client.canonical(self.action)).hexdigest(),
+                 'project':authority.config['project'],'policy':'public-1'}
+        authority.request=Mock(side_effect=[{'allowed':True},{'allowed':True,'grant':'x'*32,'ttl':10},
+                                          {'allowed':True,'action':binding['action'],'policy':'public-1'}])
+        authority.admit(self.action)
+        self.assertEqual(authority.request.call_args_list[0].args,(binding,'/v1/register'))
+        self.assertNotIn('argv',str(authority.request.call_args_list))
+
+    def test_public_registration_denial_never_issues_or_launches(self):
+        authority=object.__new__(client.Client)
+        authority.config={'transport':'public-https','project':'public-'+'a'*32,'policy':'public-1','expires':time.time()+30*86400}
+        authority.request=Mock(side_effect=client.Denied())
+        with patch.object(client,'run_managed') as launch,self.assertRaises(client.Denied):
+            client.run(self.action,authority)
+        launch.assert_not_called()
+        self.assertEqual(authority.request.call_count,1)
+
     def setUp(self):
         self.action = {'argv': ['example', 'argument'], 'cwd': '/',
                        'scope': 'test', 'identity': 'test'}
