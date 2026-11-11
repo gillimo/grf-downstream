@@ -18,3 +18,21 @@ jobs:
       - run: python -m unittest test_client test_starter test_process -v
       - run: python -m pip install --require-hashes -r requirements-relay.txt
       - run: python -c "import grf_relay; import websockets; assert websockets.__version__ == '17.4'"
+      - name: Diagnose synthetic enrollment ACL failure
+        if: failure() && runner.os == 'Windows'
+        run: |
+          @'
+          import tempfile, subprocess
+          from pathlib import Path
+          import grf_enroll
+          with tempfile.TemporaryDirectory() as folder:
+              target=Path(folder)/'credentials'
+              target.mkdir(mode=0o700)
+              try:
+                  grf_enroll.protect(target)
+                  print('ACL protection passed')
+              except subprocess.CalledProcessError as error:
+                  print(error.stderr.decode(errors='replace'))
+                  print(subprocess.run(['icacls',str(target)],capture_output=True,text=True).stdout)
+                  print(subprocess.run(['whoami','/user'],capture_output=True,text=True).stdout)
+          '@ | python -
