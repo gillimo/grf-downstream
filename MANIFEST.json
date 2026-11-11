@@ -1,25 +1,26 @@
 {
-  "version": "0.4.1",
+  "version": "0.5.1",
   "license": "MIT",
   "scope": "Public admission client only",
   "files": {
-    "grf_client.py": "3e3bc21f04dcafd85e0e1dff9dffa271316fd19ec9f501d6c3c0fe50b4ee925f",
-    "README.grf": "4d3834416401663055b655efd095dec832248f6fc6f488eed4448eb6d32dd572",
+    "grf_client.py": "70b75721d832247caf672c6ec243655bd1a57605feb22ad9159d1ac4109aebc9",
+    "README.grf": "0ec43c037736f4cad1201b308013cf8ba736d956520c81fc5436d168e3b6878d",
     "LICENSE": "f6027e3cfd43a77a2d0701a92a07f26b80cd44486c8457dcacbef69d37f911b6",
     "SECURITY.grf": "a1e1f85ed42b3080e556cd5b770f6e859ac0dce790cb7cea13306e9f6b76cba2",
     "enrollment.example.json": "bd172ac2d72f95af6c848f46634177e1d6d9e1a2ad33034da8b0e1d52898a250",
     "example.grf": "d4bb955029c4f73360fc9f03b7bb46ec3089c473186c4deff33bfb5a44744f44",
     ".gitignore": "dca7bc2a05736ae34f74e5b140575e86d4deacd592bacc1b1808d2a1be4d7681",
-    "test_client.py": "3fb8a2f2b1aeee8dfc7c65ccaeb94c0e72ad7fa7fb3d9953e025b7aa04e0acb9",
+    "test_client.py": "568c22da602bcac7d110af0ad8de002672333f2e6794f98bc4cee5271c5a6fc9",
     "verify_release.py": "3bb4b502e86d18451f0b806c7438d88d0d1d2c60c861e3f9f6a7689ac1f03619",
-    "RELEASE.grf": "bbd98ad4112cd7a4af0caaba77e7b375d23f8ba7430f638fe2ee7fa289c2da78",
-    "grf_starter.py": "16d5d66334108e8683bce2d23bc91a8f4c5db106e477ff8f860c413a78b574f1",
+    "RELEASE.grf": "24576390fc14281fd71a9c0e8acbee3ec84f5ae2b08d1a026e2b64035ba881d6",
+    "grf_starter.py": "3bc37cedcb1ee2964c857d7c191e0f610f4eaaac953f7efe34c49c35d81dd82d",
     "test_starter.py": "49d9a25954661a8a8f3ec6c9185afd129874c1f87bf63792bb6b48c4388a7700",
-    "QUICKSTART.grf": "d3e94adc3c4202e4f0b76fdd52345a022e9fa61ee6a2846606d5decec9b1b2a6",
+    "QUICKSTART.grf": "73e111646cde7d77dd69dd5dc4b4479f395e7f2d5ed7725b054a4a874bf14a6b",
     "grf_relay.py": "d66ab7ce69b9395ca0059e7d04e300c98284b62479fdec7c3cf40ba6a7e138f8",
     "requirements-relay.txt": "2a5e68dbe0f25153b77b60cca08cd8976c41e28104b60d785a0aeab58722fff4",
-    "HOSTED.grf": "91b6a4c6f66684eeb9ca3c37aa10c377071fa31231929d8a27e41d8e46ada0a2",
+    "HOSTED.grf": "e0b4776ee46e1c70cbfb36a6b21c961a9eb79a35ee5c6c13f1c0fca58ba1e622",
     "grf_process.py": "ada3f7eb510f5f2f3080a14c80e434732d02a358ece62f8824a30f7cdd04f587",
-    "test_process.py": "e3ec2ce553efbb88a3c143f51cde2f9cbaf92ab6dfb7a8ce674371bf3deb2ed3"
+    "test_process.py": "e3ec2ce553efbb88a3c143f51cde2f9cbaf92ab6dfb7a8ce674371bf3deb2ed3",
+    "grf_enroll.py": "668a463748b33d298fa1c73e9466e7dabbeec1320fead732bc3e9798569763db"
   }
 }
