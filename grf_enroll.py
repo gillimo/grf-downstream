@@ -31,7 +31,8 @@ foreach($rule in $acl.Access) {
 }
 '''
         subprocess.run(['powershell','-NoProfile','-NonInteractive','-Command',script],
-                       env={**os.environ,'GRF_PRIVATE_DIR':str(folder)},capture_output=True,check=True)
+                       env={**{k:v for k,v in os.environ.items() if k.lower()!='psmodulepath'},
+                            'GRF_PRIVATE_DIR':str(folder)},capture_output=True,check=True)
     else:
         folder.chmod(0o700)
 

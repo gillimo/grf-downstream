@@ -16,7 +16,7 @@ import uuid
 from grf_client import Client, Denied, canonical, load_config, strict_json
 from grf_process import run_managed
 
-VERSION = '0.5.0'
+VERSION = '0.5.1'
 HEADER = '```grf:context id="downstream-project"\n'
 REQUIRED = 'REG-PROJECT-ACCEPTANCE'
 
