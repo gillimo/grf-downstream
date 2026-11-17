@@ -8,11 +8,12 @@ import re
 import ssl
 import subprocess
 import sys
+import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from grf_process import run_managed
 
-VERSION = '0.4.1'
+VERSION = '0.5.1'
 
 
 class Denied(Exception):
@@ -67,6 +68,19 @@ def load_config(path):
     if path.stat().st_size > 16384:
         raise ValueError('configuration too large')
     config = strict_json(path.read_bytes())
+    public = {'host','port','project','policy','account','credential_file','expires','transport'}
+    if isinstance(config,dict) and config.get('transport') == 'public-https':
+        if (set(config)!=public or config['port']!=443 or type(config['port']) is not int
+                or not isinstance(config['host'],str)
+                or not re.fullmatch(r'[a-z0-9][a-z0-9.-]{1,250}',config['host'])
+                or not isinstance(config['account'],str) or not re.fullmatch(r'[a-f0-9]{32}',config['account'])
+                or config['project']!='public-'+config['account'] or config['policy']!='public-1'
+                or type(config['expires']) is not int or not isinstance(config['credential_file'],str)):
+            raise ValueError('Invalid public enrollment')
+        key = (path.parent / config['credential_file']).resolve()
+        if key.parent!=path.parent or key.is_symlink(): raise ValueError('Invalid credential path')
+        config['credential_file']=str(key)
+        return config
     required = {'host', 'port', 'ca', 'cert', 'key', 'project', 'policy'}
     if not isinstance(config, dict) or set(config) not in (required, required | {'relay'}):
         raise ValueError('invalid enrollment fields')
@@ -95,11 +109,15 @@ def load_config(path):
 class Client:
     def __init__(self, config):
         self.config = dict(config)
+        if config.get('transport')=='public-https':
+            self.context=ssl.create_default_context()
+            self.context.minimum_version=ssl.TLSVersion.TLSv1_2
+            return
         self.context = ssl.create_default_context(cafile=config['ca'])
         self.context.minimum_version = ssl.TLSVersion.TLSv1_2
         self.context.load_cert_chain(config['cert'], config['key'])
 
-    def request(self, value):
+    def request(self, value, path='/v1/admission', _attempt=0):
         if 'relay' in self.config:
             from grf_relay import RelayHTTPSConnection
             c = RelayHTTPSConnection(self.config,self.context)
@@ -107,9 +125,20 @@ class Client:
             c = http.client.HTTPSConnection(self.config['host'], self.config['port'],
                                             context=self.context, timeout=4)
         try:
-            c.request('POST', '/v1/admission', canonical(value), {'Content-Type': 'application/json'})
+            headers={'Content-Type':'application/json'}
+            if self.config.get('transport')=='public-https':
+                credential=Path(self.config['credential_file'])
+                if credential.stat().st_size>128: raise Denied()
+                secret=credential.read_text(encoding='ascii').strip()
+                if not re.fullmatch(r'[A-Za-z0-9_-]{43}',secret): raise Denied()
+                headers.update(Authorization='Bearer '+secret, **{'X-GRF-Account':self.config['account']})
+            c.request('POST', path, canonical(value), headers)
             r = c.getresponse()
             raw = r.read(4097)
+            if r.status==429 and self.config.get('transport')=='public-https' and _attempt<3:
+                c.close()
+                time.sleep(_attempt+1)
+                return self.request(value,path,_attempt+1)
             if r.status != 200 or len(raw) > 4096 or r.getheader('Content-Type') != 'application/json':
                 raise Denied()
             result = strict_json(raw)
@@ -124,6 +153,13 @@ class Client:
     def admit(self, action):
         binding = {'action': hashlib.sha256(canonical(action)).hexdigest(),
                    'project': self.config['project'], 'policy': self.config['policy']}
+        if self.config.get('transport')=='public-https':
+            if self.config['expires']<time.time()+7*86400:
+                renewed=self.request({},'/v1/renew')
+                if (renewed.get('account')!=self.config['account'] or type(renewed.get('expires')) is not int
+                        or renewed['expires']<=time.time()): raise Denied()
+                self.config['expires']=renewed['expires']
+            if self.request(binding,'/v1/register')!={'allowed':True}: raise Denied()
         issued = self.request(dict(binding, phase='issue'))
         if (set(issued) != {'allowed', 'grant', 'ttl'}
                 or type(issued['grant']) is not str or not 16 <= len(issued['grant']) <= 256
