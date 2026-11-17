@@ -16,6 +16,8 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python verify_release.py
       - run: python -m unittest test_client test_starter test_process test_child_boundary -v
+      - name: Exercise the package from a fresh virtual environment
+        run: python -c "import os,pathlib,subprocess,venv; root=pathlib.Path('.ci-clean-venv'); venv.create(root,with_pip=False); exe=root/('Scripts/python.exe' if os.name=='nt' else 'bin/python'); subprocess.run([str(exe),'-E','-s','-m','unittest','test_client','test_starter','test_process','test_child_boundary','-v'],check=True)"
       - run: python -m pip install --require-hashes -r requirements-relay.txt
       - run: python -c "import grf_relay; import websockets; assert websockets.__version__ == '17.4'"
       - name: Diagnose synthetic enrollment ACL failure

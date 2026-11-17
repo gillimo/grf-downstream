@@ -8,6 +8,7 @@ actions, exec replacement, or requests to existing external services.
 """
 import ctypes
 from ctypes import wintypes
+import hashlib
 import json
 import os
 import signal
@@ -16,6 +17,43 @@ import sys
 import threading
 import time
 from pathlib import Path
+
+
+def _windows_venv_target(argv, cwd):
+    """Apply CPython's verified venv redirector translation without an extra PID.
+
+    The exact original argv is retained, as in CPython's own venv launcher. Only
+    a byte-matching stdlib redirector is translated; arbitrary executables and
+    unrecognized launchers never receive extra process slots.
+    """
+    import shutil
+    target = Path(argv[0])
+    if not target.is_absolute():
+        local = Path(cwd) / target
+        target = local if local.is_file() else Path(shutil.which(argv[0]) or local)
+    if target.name.lower() not in ('python.exe', 'pythonw.exe', 'python_d.exe', 'pythonw_d.exe'):
+        return None, None
+    config = next((p for p in (target.parent / 'pyvenv.cfg', target.parent.parent / 'pyvenv.cfg') if p.is_file()), None)
+    if config is None or not target.is_file():
+        return None, None
+    if config.stat().st_size > 8192:
+        raise OSError('Virtual-environment configuration too large')
+    fields = dict((key.strip().lower(), value.strip()) for line in config.read_text(encoding='utf-8').splitlines()
+                  for key, sep, value in [line.partition('=')] if sep)
+    home = Path(fields.get('home', ''))
+    if not home.is_absolute():
+        raise OSError('Invalid virtual-environment home')
+    suffix = '_d' if target.stem.lower().endswith('_d') else ''
+    stem = 'venvwlauncher' if target.name.lower().startswith('pythonw') else 'venvlauncher'
+    templates = [home / 'Lib/venv/scripts/nt' / (stem + suffix + '.exe'),
+                 home / 'Lib/venv/scripts/nt' / target.name]
+    digest = hashlib.sha256(target.read_bytes()).digest()
+    if not any(p.is_file() and hashlib.sha256(p.read_bytes()).digest() == digest for p in templates):
+        return None, None
+    base = home / target.name
+    if not base.is_file():
+        raise OSError('Virtual-environment base interpreter missing')
+    return str(base), str(target.absolute())
 
 OUTPUT_LIMIT = 16000
 
@@ -109,14 +147,19 @@ def run_managed(argv, *, cwd, timeout, capture_output=False, cancel=None, allow_
         command = argv
         if job:
             # No requested command executes until the broker belongs to the job.
-            broker = ('import json,subprocess,sys; a=json.loads(sys.stdin.buffer.readline()); '
-                      'r=subprocess.run(a,stdin=subprocess.DEVNULL,shell=False); sys.exit(r.returncode)')
-            command = [sys.executable, '-I', '-c', broker]
+            broker = ('import json,os,subprocess,sys; a=json.loads(sys.stdin.buffer.readline()); '
+                      'e=os.environ.copy(); '
+                      'e.update({"__PYVENV_LAUNCHER__":a["venv"]} if a["venv"] else {}); '
+                      'r=subprocess.run(a["argv"],executable=a["executable"],env=e,stdin=subprocess.DEVNULL,shell=False); '
+                      'sys.exit(r.returncode)')
+            command = [getattr(sys, '_base_executable', None) or sys.executable, '-I', '-c', broker]
+        broker_env = dict(os.environ)
+        broker_env.pop('__PYVENV_LAUNCHER__', None)
         process = subprocess.Popen(command, cwd=cwd, shell=False,
                                    stdin=subprocess.PIPE if job else subprocess.DEVNULL,
                                    stdout=subprocess.PIPE if capture_output else None,
                                    stderr=subprocess.PIPE if capture_output else None,
-                                   start_new_session=os.name != 'nt')
+                                   start_new_session=os.name != 'nt', env=broker_env if job else None)
         if capture_output:
             for stream, tail in zip((process.stdout, process.stderr), tails):
                 thread = threading.Thread(target=drain, args=(stream, tail), daemon=True)
@@ -124,7 +167,8 @@ def run_managed(argv, *, cwd, timeout, capture_output=False, cancel=None, allow_
                 thread.start()
         if job:
             job.assign(process)
-            process.stdin.write(json.dumps(argv).encode() + b'\n')
+            executable, venv = _windows_venv_target(argv, cwd)
+            process.stdin.write(json.dumps({'argv': argv, 'executable': executable, 'venv': venv}).encode() + b'\n')
             process.stdin.close()
         import time
         deadline = time.monotonic() + timeout
