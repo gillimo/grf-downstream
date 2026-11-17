@@ -13,7 +13,7 @@ import time
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from grf_process import run_managed
 
-VERSION = '0.5.1'
+VERSION = '0.6.0'
 
 
 class Denied(Exception):
@@ -51,8 +51,11 @@ def read_action(path):
     if not isinstance(document, dict) or document.get('format') != 'grf.downstream-preview/v1':
         raise ValueError('unsupported format')
     action = document.get('action')
-    if not isinstance(action, dict) or set(action) != {'argv', 'cwd', 'scope', 'identity'}:
+    required = {'argv', 'cwd', 'scope', 'identity'}
+    if not isinstance(action, dict) or set(action) not in (required, required | {'children'}):
         raise ValueError('invalid action')
+    if action.get('children', 'inherit') not in ('inherit', 'deny'):
+        raise ValueError('Invalid child-process policy')
     if (not isinstance(action['argv'], list) or not action['argv']
             or len(action['argv']) > 128
             or any(type(v) is not str or '\0' in v or len(v) > 4096 for v in action['argv'])
@@ -173,8 +176,12 @@ class Client:
 def run(action, client):
     # Freeze the caller's data before hashing and launching; no shell interpolation.
     action = strict_json(canonical(action))
+    children = action.get('children', 'inherit')
+    if children not in ('inherit', 'deny'):
+        raise ValueError('Invalid child-process policy')
     client.admit(action)
-    return run_managed(action['argv'], cwd=action['cwd'], timeout=30).returncode
+    return run_managed(action['argv'], cwd=action['cwd'], timeout=30,
+                       allow_children=children != 'deny').returncode
 
 
 def main():

@@ -16,7 +16,7 @@ import uuid
 from grf_client import Client, Denied, canonical, load_config, strict_json
 from grf_process import run_managed
 
-VERSION = '0.5.1'
+VERSION = '0.6.0'
 HEADER = '```grf:context id="downstream-project"\n'
 REQUIRED = 'REG-PROJECT-ACCEPTANCE'
 
@@ -112,8 +112,11 @@ def project(root):
         raise ValueError('Empty check suite is not validation')
     ids = []
     for check in checks:
-        if not isinstance(check, dict) or set(check) != {'id', 'argv', 'timeout_seconds'}:
+        required = {'id', 'argv', 'timeout_seconds'}
+        if not isinstance(check, dict) or set(check) not in (required, required | {'children'}):
             raise ValueError('Invalid check fields')
+        if check.get('children', 'inherit') not in ('inherit', 'deny'):
+            raise ValueError('Invalid child-process policy')
         ident, argv, timeout = check['id'], check['argv'], check['timeout_seconds']
         if not isinstance(ident, str) or not re.fullmatch(r'REG-[A-Z0-9-]+', ident) or ident in ids:
             raise ValueError('Invalid or duplicate check ID')
@@ -175,6 +178,7 @@ def run_checks(root):
     for check in doc['checks']:
         argv = [sys.executable if a == '{python}' else a for a in check['argv']]
         item = {'id': check['id'], 'argv': argv, 'started_at': now()}
+        item['children'] = check.get('children', 'inherit')
         try:
             if len(argv) > 1 and argv[0] == sys.executable and argv[1].endswith('.py'):
                 script = inside(root, argv[1])
@@ -187,9 +191,12 @@ def run_checks(root):
             # Logs stay local. Remote admission sends the exact-action digest only.
             if doc['admission']['mode'] == 'remote':
                 config = load_config(inside(root, doc['admission']['enrollment']))
-                Client(config).admit({'argv': argv, 'cwd': str(root),
-                                      'scope': check['id'], 'identity': active['id']})
-            result = run_managed(argv, cwd=root, capture_output=True, timeout=check['timeout_seconds'])
+                action = {'argv': argv, 'cwd': str(root), 'scope': check['id'], 'identity': active['id']}
+                if 'children' in check:
+                    action['children'] = check['children']
+                Client(config).admit(action)
+            result = run_managed(argv, cwd=root, capture_output=True, timeout=check['timeout_seconds'],
+                                 allow_children=item['children'] != 'deny')
             item.update(exit_code=result.returncode,
                         stdout=result.stdout.decode('utf-8', errors='replace')[-16000:],
                         stderr=result.stderr.decode('utf-8', errors='replace')[-16000:],
