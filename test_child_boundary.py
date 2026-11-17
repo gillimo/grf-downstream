@@ -9,6 +9,7 @@ import tempfile
 import threading
 import time
 import unittest
+import venv
 from unittest.mock import Mock, patch
 
 import grf_process as managed
@@ -18,6 +19,40 @@ from test_process import alive
 
 
 class ChildBoundaryTests(unittest.TestCase):
+    def venv_case(self, controller_in_venv):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            environment = root / 'venv'
+            venv.create(environment, with_pip=False)
+            python = environment / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
+            site = environment / 'Lib/site-packages' if os.name == 'nt' else next((environment / 'lib').glob('python*/site-packages'))
+            (site / 'grf_venv_probe.py').write_text('value=42\n')
+            code = ('import json,sys,threading,subprocess; import grf_venv_probe; '
+                    'assert grf_venv_probe.value==42; t=threading.Thread(target=lambda:None); t.start(); t.join(); '
+                    'print(json.dumps({"prefix":sys.prefix,"executable":sys.executable})); '
+                    '\ntry: subprocess.run([sys.executable,"-c","from pathlib import Path; Path(\'forbidden\').touch()"],check=True)'
+                    '\nexcept OSError: pass\nelse: raise AssertionError("Child was allowed")')
+            if controller_in_venv:
+                controller = ('import sys,json; sys.path.insert(0,sys.argv[1]); import grf_process; '
+                              'r=grf_process.run_managed([sys.executable,"-c",sys.argv[2]],cwd=".",timeout=5,capture_output=True,allow_children=False); '
+                              'sys.stdout.buffer.write(r.stdout); sys.stderr.buffer.write(r.stderr); sys.exit(r.returncode)')
+                result = subprocess.run([str(python), '-c', controller, str(Path(managed.__file__).parent.resolve()), code],
+                                        cwd=root, capture_output=True, timeout=10)
+            else:
+                result = managed.run_managed([str(python), '-c', code], cwd=root, timeout=5,
+                                             capture_output=True, allow_children=False)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            actual = json.loads(result.stdout)
+            self.assertEqual(Path(actual['prefix']).resolve(), environment.resolve())
+            self.assertEqual(Path(actual['executable']).resolve(), python.resolve())
+            self.assertFalse((root / 'forbidden').exists())
+
+    def test_no_children_preserves_target_virtual_environment(self):
+        self.venv_case(False)
+
+    def test_no_children_preserves_virtual_environment_controller(self):
+        self.venv_case(True)
+
     def test_child_policy_changes_admitted_action_and_launch(self):
         action = {'argv': [sys.executable, '-c', 'pass'], 'cwd': str(Path.cwd()),
                   'scope': 'child-policy', 'identity': 'fixture', 'children': 'deny'}
